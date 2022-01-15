@@ -1,7 +1,7 @@
 # Curso Python Zero ao DS 
- Projeto desenvolvido durante o curso intitulado Python do ZERO ao DS 
+ Projeto desenvolvido durante o curso intitulado Python do ZERO ao DS lencionada pelo professor Meigarom Lopes
  
- # O problema de négocio - Compra e venda de imóveis
+## O problema de négocio - Compra e venda de imóveis
 
 ### O que a empresa faz?
 
