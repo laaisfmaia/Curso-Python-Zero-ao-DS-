@@ -39,3 +39,4 @@ Tal sugestão está relacionada com a região do imóvel, uma vez que a região 
 
 Para mais detalhes [clique aqui]()
 
+Para outras análises acesse os notebooks da parte 1 a 9
