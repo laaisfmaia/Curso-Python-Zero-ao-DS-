@@ -37,6 +37,6 @@ Tal sugestão está relacionada com a região do imóvel, uma vez que a região 
 
 
 
-Para mais detalhes [clique aqui]()
+Para mais detalhes [clique aqui](https://github.com/laaisfmaia/Curso-Python-Zero-ao-DS-/blob/main/cursoDS/Parte%209%20-%20Quest%C3%B5es%20de%20Neg%C3%B3cio.ipynb)
 
 Para outras análises acesse os notebooks da parte 1 a 9
