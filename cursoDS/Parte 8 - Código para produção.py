@@ -7,13 +7,19 @@ from streamlit_folium import folium_static
 from folium.plugins import MarkerCluster
 import plotly.express as px
 from datetime import datetime
+import geopandas
 
 st.set_page_config(layout='wide')  #para que os conteúdos da página preencham toda a tela
 
 @st.cache(allow_output_mutation=True)  #para otimizar a performance do código
+#get data
 def get_data(path):
     df = pd.read_csv(path)
     return df
+
+def get_geofile( url ):
+    geofile = geopandas.read_file( url )
+    return geofile
 
 def set_feature(data):
     # tranformação da variavel de foot para metros
@@ -25,8 +31,8 @@ def set_feature(data):
 def overview_data(data):
     # data overview
     f_attribute = st.sidebar.multiselect('Enter columns',
-                                         data.columns)  # filtro que permite escolher uma ou mais variáveis para visualizar (Q2)
-    f_zipcode = st.sidebar.multiselect('Enter ZipCode', data['zipcode'].unique())  # filtro para visualizar os imóveis de uma ou várias regiões (Q1)
+                                         data.columns)  # Q2 - filtro que permite escolher uma ou mais variáveis para visualizar (Q2)
+    f_zipcode = st.sidebar.multiselect('Enter ZipCode', data['zipcode'].unique())  # Q1 - filtro para visualizar os imóveis de uma ou várias regiões (Q1)
 
     st.title('Data Overview')  # título na página
 
@@ -35,7 +41,7 @@ def overview_data(data):
     #    elif (f_zipcode != []) & (f_attribute == []):
     #        data = data.loc[data['zipcode'].isin(f_zipcode), :]
     #    elif (f_zipcode == []) & (f_attribute != []):
-    #        data = data.loc[:, f_attribute]
+    #        data = data.loc[:, f_attri0ute]
     #    else:
     #        data = data.copy()
 
@@ -60,7 +66,7 @@ def overview_data(data):
     c1, c2 = st.columns((1, 1))  # para colocar uma tabela do lado da outra
 
     # average metrics
-    # Observar o número total de imóveis, a média de preço, a média da sala de estar
+    # Q3 - Observar o número total de imóveis, a média de preço, a média da sala de estar
     # e também a média do preço por metro quadrado em cada um dos códigos postais.
     # data2 = get_data(path)
 
@@ -80,6 +86,7 @@ def overview_data(data):
     c1.dataframe(df, height=600)
 
     # Statistic Descriptive
+    # Q4 - Analisar cada uma das colunas de um modo mais descrito.
     num_attributes = data.select_dtypes(include=['int64', 'float64'])
     media = pd.DataFrame(num_attributes.apply(np.mean))
     mediana = pd.DataFrame(num_attributes.apply(np.median))
@@ -95,14 +102,14 @@ def overview_data(data):
 
     return None
 
-def portfolio_density(data):
-    # densidade de portfólio
+#mapas
+def region_overview(data, geofile):
     st.title('Region Overview')
-
     c1, c2 = st.columns((1, 1))
-    c1.header('Portfolio Density')
 
     df = data.sample(10)
+    # densidade de portfólio
+    c1.header('Portfolio Density')
 
     # base Map - folium
     density_map = folium.Map(location=[data['lat'].mean(), data['long'].mean()],
@@ -123,7 +130,30 @@ def portfolio_density(data):
     with c1:
         folium_static(density_map)
 
+    #region price map
+    c2.header('Price Density')
+    df = data[['price','zipcode']].groupby('zipcode').mean().reset_index()
+    df.columns = ['ZIP', 'PRICE']
+
+    geofile = geofile[geofile['ZIP'].isin(df['ZIP'].tolist())]
+
+    region_price_map = folium.Map(location = [data['lat'].mean(),
+                                              data['long'].mean()],
+                                    default_zoom_start=15)
+
+    region_price_map.choropleth( data = df,
+                                 geo_data = geofile,
+                                 columns = ['ZIP','PRICE'],
+                                 key_on = 'feature.properties.ZIP',
+                                 fill_color = 'YlOrRd',
+                                 fill_opacity = 0.7,
+                                 line_opacity = 0.2,
+                                 legend_name = 'AVG PRICE')
+    with c2:
+        folium_static(region_price_map)
+
     return None
+
 
 def commercial_distribution(data):
     # Distribuição dos imoveis por categoria comerciais
@@ -246,14 +276,18 @@ if __name__ == "__main__":
     # ETL
     #data extration
     path = 'datasets/kc_house_data.csv'
-    data = get_data(path)
+    url = 'https://opendata.arcgis.com/datasets/83fc2e72903343aabff6de8cb445b81c_2.geojson'
 
-    #tranformation
+    #load data
+    data = get_data(path)
+    geofile = get_geofile(url)
+
+    #tranformation data
     data = set_feature(data)
 
     overview_data(data)
 
-    portfolio_density(data)
+    region_overview(data, geofile)
 
     commercial_distribution(data)
 
