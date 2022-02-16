@@ -34,7 +34,9 @@ def overview_data(data):
                                          data.columns)  # Q2 - filtro que permite escolher uma ou mais variáveis para visualizar (Q2)
     f_zipcode = st.sidebar.multiselect('Enter ZipCode', data['zipcode'].unique())  # Q1 - filtro para visualizar os imóveis de uma ou várias regiões (Q1)
 
-    st.title('Data Overview')  # título na página
+    st.title('Database referring to properties located in King County Washington - USA') # título na página
+
+    st.header('Data Overview')
 
     #    if (f_zipcode != []) & (f_attribute != []):
     #        data = data.loc[data['zipcode'].isin(f_zipcode), f_attribute]
@@ -82,7 +84,8 @@ def overview_data(data):
 
     df.columns = ['ZIPCODE', 'TOTAL HOUSES', 'PRICE', 'SQRT LIVIND', 'PRICE/M2']
 
-    c1.header('Average Values')
+
+    c1.subheader('Average Values')
     c1.dataframe(df, height=600)
 
     # Statistic Descriptive
@@ -97,19 +100,19 @@ def overview_data(data):
     df1 = pd.concat([max_, min_, media, mediana, std], axis=1).reset_index()
     df1.columns = ['attributes', 'max', 'min', 'mean', 'median', 'std']
 
-    c2.header('Descriptive analysis')
+    c2.subheader('Descriptive analysis')
     c2.dataframe(df1, height=700)
 
     return None
 
 #mapas
 def region_overview(data, geofile):
-    st.title('Region Overview')
+    st.header('Region Overview')
     c1, c2 = st.columns((1, 1))
 
     df = data.sample(10)
     # densidade de portfólio
-    c1.header('Portfolio Density')
+    c1.subheader('Portfolio Density')
 
     # base Map - folium
     density_map = folium.Map(location=[data['lat'].mean(), data['long'].mean()],
@@ -131,7 +134,7 @@ def region_overview(data, geofile):
         folium_static(density_map)
 
     #region price map
-    c2.header('Price Density')
+    c2.subheader('Price Density')
     df = data[['price','zipcode']].groupby('zipcode').mean().reset_index()
     df.columns = ['ZIP', 'PRICE']
 
@@ -158,7 +161,7 @@ def region_overview(data, geofile):
 def commercial_distribution(data):
     # Distribuição dos imoveis por categoria comerciais
     st.sidebar.title('Commercial Options')
-    st.title('Commercial Attributes')
+    st.header('Commercial Attributes')
 
     # Checar a variação anual de preço.
     # Average Price per Year
@@ -172,7 +175,7 @@ def commercial_distribution(data):
     f_year_built = st.sidebar.slider('Year Built', min_year_built,
                                      max_year_built,
                                      min_year_built)
-    st.header('Average Price per Year Built')
+    st.subheader('Average Price per Year Built')
 
     # data select
     df = data.loc[data['yr_built'] < f_year_built]
@@ -184,7 +187,7 @@ def commercial_distribution(data):
 
     # Checar a variação diária de preço.
     # Average Price per Day
-    st.header('Average Price per Day')
+    st.subheader('Average Price per Day')
     st.sidebar.subheader('Select Max Date')
 
     # filter
@@ -203,7 +206,7 @@ def commercial_distribution(data):
     st.plotly_chart(fig, use_container_width=True)
 
     # histograma
-    st.header('Price Distribution')
+    st.subheader('Price Distribution')
     st.sidebar.subheader(('Select Max Price'))
 
     # filter
@@ -224,7 +227,7 @@ def commercial_distribution(data):
 def attributes_distribution(data):
     # distribuição dos imoveis por categorias físicas
     st.sidebar.title('Attributes Options')
-    st.title('House Attributes')
+    st.header('House Attributes')
 
     # filter
     f_bedrooms = st.sidebar.selectbox('Max number of bedrooms', sorted(set(data['bedrooms'].unique())))
@@ -234,14 +237,14 @@ def attributes_distribution(data):
     c1, c2 = st.columns(2)
 
     # house per bedrooms
-    c1.header('Houses per bedrooms')
+    c1.subheader('Houses per bedrooms')
     df = data[data['bedrooms'] < f_bedrooms]
     # plot
     fig = px.histogram(df, x='bedrooms', nbins=19)
     c1.plotly_chart(fig, use_container_width=True)
 
     # house per bathrooms
-    c2.header('Houses per bathrooms')
+    c2.subheader('Houses per bathrooms')
     df = data[data['bathrooms'] < f_bathrooms]
     # plot
     fig = px.histogram(df, x='bathrooms', nbins=19)
@@ -254,7 +257,7 @@ def attributes_distribution(data):
     c1, c2 = st.columns(2)
 
     # house per floors
-    c1.header('Houses per floor')
+    c1.subheader('Houses per floor')
     df = data[data['floors'] < f_floors]
     # plot
     fig = px.histogram(df, x='floors', nbins=19)
@@ -266,9 +269,104 @@ def attributes_distribution(data):
     else:
         df = data.copy()
 
-    c2.header('Houses with Water View')
+    c2.subheader('Houses with Water View')
     fig = px.histogram(df, x='waterfront', nbins=10)
     c2.plotly_chart(fig, use_container_width=True)
+
+    return None
+
+def tabela_compra(data):
+    st.header('Analysis results')
+
+    # agrupando os dados por região
+    df = data[['zipcode', 'price']].groupby('zipcode').median().reset_index()
+    df2 = pd.merge(data, df, on='zipcode', how='inner')
+
+    # O imóvel vai ser sugerida para compra se:
+    # - seu preço estiver abaixo da mediana da região;
+    # - se a condição da casa estiver boa e
+    # - se tiver vista para a água.
+    for i in range(len(df2)):
+        if (df2.loc[i, 'price_x'] < df2.loc[i, 'price_y']) & (df2.loc[i, 'condition'] >= 2) & (
+                df2.loc[i, 'waterfront'] == 1):
+            df2.loc[i, 'status'] = 'Compra'
+        else:
+            df2.loc[i, 'status'] = 'Não compra'
+
+    #renomeando as colunas
+    df2.rename(columns={'price_x': 'price', 'price_y': 'price_median'}, inplace=True)
+
+    # dataframe com as sugestões de compra/não compra
+    arq_sugestao_compra = df2[['id', 'zipcode', 'price', 'price_median', 'condition', 'waterfront', 'status']]
+
+    # dataframe só com as casas que foram sugeridas para compra
+    df3 = df2[df2['status'] == 'Compra'][['id', 'zipcode', 'price', 'price_median', 'condition', 'waterfront', 'status']]
+
+    st.subheader('Suggested properties for purchase')
+    st.dataframe(df3, height=600)
+
+    return None
+
+def recomendacao_venda(data):
+    #transformação da coluna 'date' para o tipo datetime
+    data['date'] = pd.to_datetime(data['date'])
+
+    # vou criar uma nova coluna chamada 'month' contendo somente o mês da coluna 'date'
+    data['month'] = data['date'].dt.month
+
+    # Verão: de junho a agosto.
+    # Outono: de setembro a novembro.
+    # Inverno: de dezembro a fevereiro.
+    # Primavera: de março a maio.
+
+    for i in range(len(data)):
+        if data.loc[i, 'month'] in [6, 7, 8]:
+            data.loc[i, 'season'] = 'summer'
+        elif data.loc[i, 'month'] in [9, 10, 11]:
+            data.loc[i, 'season'] = 'autumn'
+        elif data.loc[i, 'month'] in [12, 1, 2]:
+            data.loc[i, 'season'] = 'winter'
+        else:
+            data.loc[i, 'season'] = 'spring'
+
+    # dataframe com a mediana do preço das casas para cada estação de cada zipcode
+    df4 = data[['zipcode', 'season', 'price']].groupby(['zipcode', 'season']).median().reset_index()
+
+    # salvando em um arquivo .csv
+    df4.to_csv("zipcode-season.csv")
+
+    #dataframe dos imóveis com os seus respectivos preços e a mediana
+    df5 = pd.merge(data[['id', 'zipcode', 'season', 'price']], df4, on=['zipcode', 'season'], how='inner')
+
+    #renomeando as colunas
+    df5.rename(columns={'price_x': 'price', 'price_y': 'price_median'}, inplace=True)
+
+    # Condições de venda:
+    # 1. Se o preço da compra for maior que a mediana da região + sazonalidade:
+    #    - O preço da venda será igual ao preço da compra + 10%
+    # 2. Se o preço da compra for menor que a mediana da região + sazonalidade:
+    #    - O preço da venda será igual ao preço da compra + 30
+
+    for i in range(len(df5)):
+        if (df5.loc[i, 'price'] > df5.loc[i, 'price_median']):
+            df5.loc[i, 'price_sale'] = df5.loc[i, 'price'] + (df5.loc[i, 'price']) * (10 / 100)
+            df5.loc[i, '%'] = '+10%'
+        else:
+            df5.loc[i, 'price_sale'] = df5.loc[i, 'price'] + (df5.loc[i, 'price']) * (30 / 100)
+            df5.loc[i, '%'] = '+30%'
+        #lucro
+        df5.loc[i, 'lucro'] = df5.loc[i, 'price_sale'] - df5.loc[i, 'price']
+
+    l_tot = df5['lucro'].sum()
+
+    body = 'Using this methodology to aid in decision making to define the purchase and resale price of properties will provide a total profit of U$' + format(l_tot,'.2f')
+
+    #print(f'{a} {df5} {b}{l_tot:.2f}')
+
+    st.subheader('Suggested price for resale')
+    st.dataframe(df5, height=600)
+
+    st.markdown(body)
 
     return None
 
@@ -293,8 +391,9 @@ if __name__ == "__main__":
 
     attributes_distribution(data)
 
+    tabela_compra(data)
 
-
+    recomendacao_venda(data)
 
 
 
